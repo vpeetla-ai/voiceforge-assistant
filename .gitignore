@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.env
+.venv/
+venv/
+data/replays/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.DS_Store
+
+# UI
+ui/node_modules/
+ui/.next/
+ui/out/
+ui/.vercel/

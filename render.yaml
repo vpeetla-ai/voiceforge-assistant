@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: voiceforge-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -e ".[api,tts]"
+    startCommand: gunicorn api.main:app -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:$PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    branch: main
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: ASR_MODE
+        value: browser_asr
+      - key: LLM_MODE
+        value: mock
+      - key: TTS_MODE
+        value: edge
+      - key: CORS_ORIGINS
+        value: https://voiceforge-assistant.vercel.app,https://venkat-ai.com

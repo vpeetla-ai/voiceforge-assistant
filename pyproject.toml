@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "voiceforge"
+version = "0.1.0"
+description = "Real-time voice triage — ASR, LLM, TTS with latency budgets and graceful degradation"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [{ name = "vpeetla-ai" }]
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn[standard]>=0.32.0",
+  "pydantic>=2.9.0",
+  "pydantic-settings>=2.6.0",
+  "httpx>=0.28.0",
+  "websockets>=13.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3.0",
+  "pytest-asyncio>=0.24.0",
+  "ruff>=0.8.0",
+]
+asr = [
+  "faster-whisper>=1.0.0",
+]
+tts = [
+  "edge-tts>=6.1.0",
+]
+api = [
+  "gunicorn>=23.0.0",
+]
+
+[project.scripts]
+voiceforge-serve = "voiceforge.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["voiceforge*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+pythonpath = ["."]
+markers = [
+  "integration: tests requiring optional asr/tts deps",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
