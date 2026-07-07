@@ -1,0 +1,22 @@
+sequenceDiagram
+  participant U as User / Browser
+  participant ASR as ASR layer
+  participant API as VoiceForge API
+  participant LLM as LLM triage
+  participant TTS as TTS layer
+  participant UI as Latency waterfall UI
+
+  U->>ASR: Speech or text input
+  ASR-->>API: transcript + asr_ms
+  API->>LLM: triage request
+  Note over LLM: Mock / Ollama / DomainForge /v1/query
+  LLM-->>API: reply JSON + llm_ttft_ms
+  API->>TTS: synthesize reply
+  Note over TTS: edge-tts or browser speechSynthesis
+  TTS-->>API: audio_b64 or use_browser_tts
+  API-->>UI: result + latency budget breakdown
+  API-->>U: audio or text fallback
+
+  alt degradation
+    API-->>U: text-only / cached reply / browser TTS
+  end
