@@ -202,11 +202,15 @@ export default function HomePage() {
   const budgets = config?.budgets_ms ?? { asr: 8000, llm: 15000, tts: 10000, total: 30000 };
 
   return (
-    <main>
-      <h1>VoiceForge</h1>
-      <p className="subtitle">
-        Real-time voice triage — ASR → LLM → TTS with latency budgets &amp; graceful degradation
-      </p>
+    <>
+      <div className="page-hero">
+        <p className="eyebrow">Voice interface layer</p>
+        <h1>VoiceForge</h1>
+        <p className="subtitle">
+          Real-time voice triage — browser ASR, governed LLM triage, and TTS with latency budgets
+          and graceful degradation when a phase exceeds budget.
+        </p>
+      </div>
 
       {config && (
         <div className="panel">
@@ -343,7 +347,7 @@ export default function HomePage() {
           </tbody>
         </table>
       </div>
-    </main>
+    </>
   );
 }
 
