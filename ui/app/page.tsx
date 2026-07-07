@@ -5,6 +5,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/voice';
 
+const WAKE_HINT =
+  'The demo API is on Render free tier and may be waking up (~30s after idle). Wait a moment and try again.';
+
+// A failed fetch to a sleeping Render service surfaces as a TypeError ("Failed to
+// fetch") rather than an HTTP error. Translate that into a friendly cold-start hint.
+async function fetchJson(input: string, init?: RequestInit) {
+  let resp: Response;
+  try {
+    resp = await fetch(input, init);
+  } catch {
+    throw new Error(WAKE_HINT);
+  }
+  if (!resp.ok) throw new Error((await resp.text()) || WAKE_HINT);
+  return resp.json();
+}
+
 type Latency = {
   asr_ms: number;
   llm_ttft_ms: number;
@@ -119,13 +135,12 @@ export default function HomePage() {
       if (useWs) {
         await sendViaWebSocket(transcript, asrMs);
       } else {
-        const resp = await fetch(`${API_URL}/v1/voice`, {
+        const data = await fetchJson(`${API_URL}/v1/voice`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript, asr_ms: asrMs }),
         });
-        if (!resp.ok) throw new Error(await resp.text());
-        handleResult(await resp.json());
+        handleResult(data);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Voice turn failed');
@@ -148,7 +163,7 @@ export default function HomePage() {
           resolve();
         }
       };
-      ws.onerror = () => reject(new Error('WebSocket error'));
+      ws.onerror = () => reject(new Error(`WebSocket error — ${WAKE_HINT}`));
     });
   }
 
@@ -185,8 +200,7 @@ export default function HomePage() {
     setLoading(true);
     setError(null);
     try {
-      const resp = await fetch(`${API_URL}/v1/replay`);
-      const data = await resp.json();
+      const data = await fetchJson(`${API_URL}/v1/replay`);
       if (data.replay) {
         setResult(data.replay as VoiceResult);
       } else {

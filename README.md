@@ -105,6 +105,8 @@ curl -X POST http://localhost:8000/v1/voice \
 | API (Render) | [voiceforge-api-eysb.onrender.com](https://voiceforge-api-eysb.onrender.com) — cold start ~30s |
 | UI (Vercel) | `ui/` static export · `NEXT_PUBLIC_API_URL` |
 
+> **First-run note:** The Render API sleeps after inactivity on the free tier. The first request takes ~30s to wake. The UI shows a phase status and degrades gracefully to text-only if ASR/TTS or the API is unavailable.
+
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Stack fit
