@@ -74,7 +74,7 @@ curl -X POST http://localhost:8000/v1/voice \
 
 | Target | Config |
 |--------|--------|
-| API (Render) | `render.yaml` — `voiceforge-api` |
+| API (Render) | [voiceforge-api-eysb.onrender.com](https://voiceforge-api-eysb.onrender.com/health) |
 | UI (Vercel) | `ui/` static export, `NEXT_PUBLIC_API_URL` |
 
 ## Stack integration

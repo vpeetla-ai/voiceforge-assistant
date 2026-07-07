@@ -27,8 +27,8 @@ OLLAMA_BASE_URL=https://your-ollama-host:11434
 
 1. Import `ui/` directory or monorepo root with root `ui`
 2. Set environment:
-   - `NEXT_PUBLIC_API_URL=https://voiceforge-api.onrender.com`
-   - `NEXT_PUBLIC_WS_URL=wss://voiceforge-api.onrender.com/ws/voice`
+   - `NEXT_PUBLIC_API_URL=https://voiceforge-api-eysb.onrender.com`
+   - `NEXT_PUBLIC_WS_URL=wss://voiceforge-api-eysb.onrender.com/ws/voice`
 3. Build: `npm run build` (static export to `out/`)
 
 ## Local dev
