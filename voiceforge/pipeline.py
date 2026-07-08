@@ -154,7 +154,26 @@ class VoicePipeline:
         payload = result.to_dict()
         payload.pop("audio_b64", None)
         path.write_text(json.dumps(payload, indent=2))
+        self._record_stats(result)
         return path
+
+    def _record_stats(self, result: PipelineResult) -> None:
+        path = self.settings.replay_store_path
+        stats_path = path.parent / "stats.json"
+        stats: dict[str, Any] = {"turn_count": 0, "latencies_ms": []}
+        if stats_path.exists():
+            stats = json.loads(stats_path.read_text())
+        stats["turn_count"] = int(stats.get("turn_count", 0)) + 1
+        latencies = list(stats.get("latencies_ms", []))
+        latencies.append(float(result.latency.total_ms))
+        stats["latencies_ms"] = latencies[-100:]
+        stats_path.write_text(json.dumps(stats, indent=2))
+
+    def load_stats(self) -> dict[str, Any]:
+        stats_path = self.settings.replay_store_path.parent / "stats.json"
+        if not stats_path.exists():
+            return {"turn_count": 0, "latencies_ms": []}
+        return json.loads(stats_path.read_text())
 
     def load_replay(self) -> dict[str, Any] | None:
         path = self.settings.replay_store_path
