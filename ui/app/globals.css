@@ -54,7 +54,10 @@ body {
   font-family: var(--vp-font);
   font-size: 15px;
   line-height: 1.6;
-  background: var(--vp-bg);
+  background:
+    radial-gradient(ellipse 90% 55% at 8% -10%, color-mix(in srgb, var(--vp-accent) 14%, transparent), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 92% 0%, color-mix(in srgb, var(--vp-accent) 8%, transparent), transparent 50%),
+    var(--vp-bg);
   color: var(--vp-text);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -573,11 +576,11 @@ pre.rejected { border-color: rgba(220, 38, 38, 0.35); background: var(--vp-dange
   .app-header__inner { padding: 0 1rem; }
 }
 
-/* VoiceForge accent + voice-specific */
+/* VoiceForge accent + voice-specific — cyan (avoid purple-default cluster) */
 :root {
-  --vp-accent: #7c3aed;
-  --vp-accent-hover: #6d28d9;
-  --vp-accent-subtle: #f5f3ff;
+  --vp-accent: #0891b2;
+  --vp-accent-hover: #0e7490;
+  --vp-accent-subtle: #ecfeff;
   --asr: #3b82f6;
   --llm: #8b5cf6;
   --tts: #14b8a6;
