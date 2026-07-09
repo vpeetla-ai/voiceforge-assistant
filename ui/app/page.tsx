@@ -378,6 +378,14 @@ export default function HomePage() {
           ]}
           metricsUrl={`${API_URL}/v1/ops/metrics`}
           metricLabels={{ runs: 'Voice turns', entities: 'Sessions', latency: 'P95 total latency' }}
+          eagleEyeNote="Multimodal experience layer — consumes DomainForge triage JSON under strict latency budgets."
+          adrLinks={[
+            { title: 'Case study — VoiceForge', href: 'https://github.com/vpeetla-ai/ai-architecture-portfolio/blob/main/case-studies/voiceforge-assistant.md' },
+          ]}
+          docsLinks={[
+            { title: 'Architecture', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/ARCHITECTURE.md' },
+            { title: 'SLO targets', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/SLO.md' },
+          ]}
         />
       }
     />
