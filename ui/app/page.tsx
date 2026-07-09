@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArchitectOverview } from '../components/ArchitectOverview';
+import { ProductWorkbench } from '../components/ProductWorkbench';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/voice';
@@ -217,36 +218,12 @@ export default function HomePage() {
   const budgets = config?.budgets_ms ?? { asr: 8000, llm: 15000, tts: 10000, total: 30000 };
 
   return (
-    <>
-      <div className="page-hero">
-        <p className="eyebrow">Voice interface layer</p>
-        <h1>VoiceForge</h1>
-        <p className="subtitle">
-          Real-time voice triage — browser ASR, governed LLM triage, and TTS with latency budgets
-          and graceful degradation when a phase exceeds budget.
-        </p>
-      </div>
-
-      <div className="panel">
-        <ArchitectOverview
-          tagline="Real-time voice triage: ASR → governed LLM → TTS with per-phase latency budgets and graceful degradation — multimodal layer atop DomainForge triage."
-          layers={[
-            { tier: 'L1', name: 'Voice UX', role: 'Browser + WS', components: ['Web Speech ASR', 'Waterfall viz', 'Replay'] },
-            { tier: 'L2', name: 'Pipeline', role: 'Phase budgets', components: ['ASR', 'LLM triage', 'Edge TTS'] },
-            { tier: 'L3', name: 'Degradation', role: 'Budget enforcement', components: ['Text fallback', 'Browser TTS', 'Timeout gates'] },
-            { tier: 'L4', name: 'Ops', role: 'Latency proof', components: ['/v1/ops/metrics', 'Replay store', 'SLO doc'] },
-          ]}
-          tradeoffs={[
-            { decision: 'Browser ASR default', gain: 'Zero GPU on Render free tier', trade: 'Quality varies by browser' },
-            { decision: 'Per-phase latency budgets', gain: 'Predictable UX under load', trade: 'May truncate LLM/TTS on slow paths' },
-            { decision: 'WebSocket optional', gain: 'Phase events for demos', trade: 'Extra connection complexity' },
-            { decision: 'Pairs with DomainForge', gain: 'Same triage JSON schema', trade: 'Two services for full stack story' },
-          ]}
-          metricsUrl={`${API_URL}/v1/ops/metrics`}
-          metricLabels={{ runs: 'Voice turns', entities: 'Active sessions', latency: 'P95 total latency' }}
-        />
-      </div>
-
+    <ProductWorkbench
+      eyebrow="Voice interface layer"
+      productName="VoiceForge"
+      subtitle="Real-time voice triage with per-phase latency budgets — ASR → governed LLM → TTS, with graceful degradation."
+      productPanel={
+        <>
       {config && (
         <div className="panel">
           <span className="badge">ASR: {config.asr_mode}</span>
@@ -382,7 +359,28 @@ export default function HomePage() {
           </tbody>
         </table>
       </div>
-    </>
+        </>
+      }
+      architecturePanel={
+        <ArchitectOverview
+          tagline="Multimodal layer atop DomainForge triage — phase budgets enforce predictable voice UX under load."
+          layers={[
+            { tier: 'L1', name: 'Voice UX', role: 'Browser + WebSocket', components: ['Web Speech ASR', 'Waterfall', 'Replay'] },
+            { tier: 'L2', name: 'Pipeline', role: 'Phase budgets', components: ['ASR', 'LLM triage', 'Edge TTS'] },
+            { tier: 'L3', name: 'Degradation', role: 'Budget enforcement', components: ['Text fallback', 'Browser TTS', 'Timeouts'] },
+            { tier: 'L4', name: 'Ops', role: 'Latency proof', components: ['/v1/ops/metrics', 'Replay store', 'SLO'] },
+          ]}
+          tradeoffs={[
+            { decision: 'Browser ASR default', gain: 'Zero GPU on Render free tier', trade: 'Quality varies by browser' },
+            { decision: 'Per-phase latency budgets', gain: 'Predictable UX under load', trade: 'May truncate slow LLM/TTS paths' },
+            { decision: 'WebSocket optional', gain: 'Phase events for operator visibility', trade: 'Extra connection surface' },
+            { decision: 'Pairs with DomainForge', gain: 'Same triage JSON contract', trade: 'Two services for full stack demo' },
+          ]}
+          metricsUrl={`${API_URL}/v1/ops/metrics`}
+          metricLabels={{ runs: 'Voice turns', entities: 'Sessions', latency: 'P95 total latency' }}
+        />
+      }
+    />
   );
 }
 
