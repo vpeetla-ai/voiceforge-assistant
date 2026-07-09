@@ -242,6 +242,9 @@ export default function HomePage() {
       )}
 
       <div className="panel">
+        <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
+          <strong>1.</strong> Speak or type an IT issue → <strong>2.</strong> Watch ASR → LLM → TTS budgets → <strong>3.</strong> Inspect triage JSON.
+        </p>
         <div className="row">
           <button
             type="button"
@@ -277,16 +280,31 @@ export default function HomePage() {
         {error && <p className="error">{error}</p>}
       </div>
 
+      <div className="panel">
+        <h2 style={{ fontSize: '1rem', margin: '0 0 0.35rem' }}>Latency budgets</h2>
+        <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.8rem' }}>
+          Targets — ASR {budgets.asr}ms · LLM {budgets.llm}ms · TTS {budgets.tts}ms · total {budgets.total}ms
+          {!result ? ' · run a turn to fill the waterfall' : ''}
+        </p>
+        <Waterfall
+          latency={
+            result?.latency ?? {
+              asr_ms: 0,
+              llm_ttft_ms: 0,
+              llm_total_ms: 0,
+              tts_ms: 0,
+              total_ms: 0,
+            }
+          }
+          budgets={budgets}
+        />
+        {result && result.degradation !== 'none' && (
+          <p className="degraded">⚠ {result.degradation_message || result.degradation}</p>
+        )}
+      </div>
+
       {result && (
         <>
-          <div className="panel">
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>Latency waterfall</h2>
-            <Waterfall latency={result.latency} budgets={budgets} />
-            {result.degradation !== 'none' && (
-              <p className="degraded">⚠ {result.degradation_message || result.degradation}</p>
-            )}
-          </div>
-
           <div className="panel">
             <h2 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Transcript</h2>
             <p>{result.transcript || '—'}</p>
@@ -321,8 +339,9 @@ export default function HomePage() {
         </>
       )}
 
-      <div className="panel">
-        <table className="status-table">
+      <details className="panel" style={{ padding: '1rem 1.25rem' }}>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Stack status (details)</summary>
+        <table className="status-table" style={{ marginTop: '0.75rem' }}>
           <thead>
             <tr>
               <th>Component</th>
@@ -358,7 +377,7 @@ export default function HomePage() {
             </tr>
           </tbody>
         </table>
-      </div>
+      </details>
         </>
       }
       architecturePanel={
