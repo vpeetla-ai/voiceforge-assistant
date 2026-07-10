@@ -109,6 +109,18 @@ curl -X POST http://localhost:8000/v1/voice \
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+## Interview map
+
+**Business function:** Real-time voice triage — ASR → LLM → TTS with per-phase latency budgets and graceful degradation.
+
+Staff+ prep crosswalk — [playbook](https://github.com/vpeetla-ai/ai-architect-interview-playbook) · [study UI](https://ai-architect-interview-playbook-9xs.vercel.app) · [Practice Arena](https://ai-architect-practice-arena.vercel.app) · [org matrix](https://github.com/vpeetla-ai/ai-architecture-portfolio/blob/main/docs/REPO_INTERVIEW_MAP.md). Only entries this repo honestly exercises.
+
+| Category | Entry | Fit |
+|----------|-------|-----|
+| System design | [LLM customer support assistant](https://ai-architect-interview-playbook-9xs.vercel.app/q/ai-system-design/16-llm-customer-support-assistant) ([md](https://github.com/vpeetla-ai/ai-architect-interview-playbook/blob/main/ai-system-design/16-llm-customer-support-assistant.md)) | Voice channel for support/IT triage |
+| Trade-offs | [Cost vs latency vs safety](https://ai-architect-interview-playbook-9xs.vercel.app/q/scalability-governance-tradeoffs/01-cost-vs-latency-vs-safety) ([md](https://github.com/vpeetla-ai/ai-architect-interview-playbook/blob/main/scalability-governance-tradeoffs/01-cost-vs-latency-vs-safety.md)) | Hard latency budgets + fallbacks (ADR-021) |
+| General SD | [Real-time messaging at scale](https://ai-architect-interview-playbook-9xs.vercel.app/q/general-system-design/02-realtime-chat-messaging-at-scale) ([md](https://github.com/vpeetla-ai/ai-architect-interview-playbook/blob/main/general-system-design/02-realtime-chat-messaging-at-scale.md)) | Partial — WebSocket streaming path only |
+
 ## Stack fit
 
 **Layer:** Voice / Multimodal (Pillar 5) · Consumes [DomainForge](https://github.com/vpeetla-ai/domainforge-rag-peft) triage · Future [AegisAI](https://github.com/vpeetla-ai/aegisai-enterprise-agent-platform) TTS gate.
