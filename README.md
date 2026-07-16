@@ -74,7 +74,8 @@ sequenceDiagram
 | Browser ASR + text fallback | ✅ | Client-side `asr_ms` to server |
 | Mock / Ollama / DomainForge LLM | ✅ | `LLM_MODE` env |
 | Edge TTS + browser fallback | ✅ | `pip install -e ".[tts]"` |
-| Latency waterfall UI | ✅ | ASR / LLM / TTS / total |
+| Glass-box workbench UX | ✅ | 3-column: architecture + live SLOs · ASR→LLM→TTS phase replay · product |
+| Latency waterfall UI | ✅ | Per-stage ms vs budget marker, replayed from live `latency` |
 | WebSocket phases | ✅ | `/ws/voice` |
 | Replay last turn | ✅ | `/v1/replay` |
 | Graceful degradation | ✅ | text, browser TTS, cache |

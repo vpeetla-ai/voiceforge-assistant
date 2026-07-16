@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArchitectOverview } from '../components/ArchitectOverview';
-import { ProductWorkbench } from '../components/ProductWorkbench';
+import { GlassboxWorkbench } from '../components/GlassboxWorkbench';
+import type { Latency, PipelineInput } from '../components/VoicePipelineGlassbox';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws/voice';
@@ -22,14 +22,6 @@ async function fetchJson(input: string, init?: RequestInit) {
   if (!resp.ok) throw new Error((await resp.text()) || WAKE_HINT);
   return resp.json();
 }
-
-type Latency = {
-  asr_ms: number;
-  llm_ttft_ms: number;
-  llm_total_ms: number;
-  tts_ms: number;
-  total_ms: number;
-};
 
 type VoiceResult = {
   transcript: string;
@@ -62,42 +54,6 @@ function playAudioB64(b64: string) {
   void audio.play();
 }
 
-function Waterfall({ latency, budgets }: { latency: Latency; budgets: Record<string, number> }) {
-  const max = Math.max(latency.total_ms, budgets.total || 30000, 1);
-  const bars = [
-    { key: 'asr', ms: latency.asr_ms, budget: budgets.asr, cls: 'asr', label: 'ASR' },
-    { key: 'llm', ms: latency.llm_total_ms, budget: budgets.llm, cls: 'llm', label: 'LLM' },
-    { key: 'tts', ms: latency.tts_ms, budget: budgets.tts, cls: 'tts', label: 'TTS' },
-  ];
-
-  return (
-    <div>
-      <div className="waterfall">
-        {bars.map((b) => (
-          <div
-            key={b.key}
-            className={`bar ${b.cls}`}
-            style={{ height: `${Math.max(8, (b.ms / max) * 100)}%`, flex: b.ms || 1 }}
-            title={`${b.label}: ${b.ms.toFixed(0)}ms / budget ${b.budget}ms`}
-          >
-            {b.ms > 0 ? `${b.ms.toFixed(0)}ms` : '—'}
-          </div>
-        ))}
-      </div>
-      <div className="phase-labels">
-        {bars.map((b) => (
-          <span key={b.key}>{b.label}</span>
-        ))}
-      </div>
-      <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginTop: '0.5rem' }}>
-        Total: <strong style={{ color: 'var(--text)' }}>{latency.total_ms.toFixed(0)}ms</strong>
-        {' · '}
-        LLM TTFT: {latency.llm_ttft_ms.toFixed(0)}ms
-      </p>
-    </div>
-  );
-}
-
 export default function HomePage() {
   const [textInput, setTextInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -106,6 +62,8 @@ export default function HomePage() {
   const [config, setConfig] = useState<Config | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [useWs, setUseWs] = useState(false);
+  const [traceSource, setTraceSource] = useState<'idle' | 'live' | 'replay'>('idle');
+  const [metricsToken, setMetricsToken] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const asrStartRef = useRef<number>(0);
 
@@ -121,8 +79,25 @@ export default function HomePage() {
     return JSON.stringify(result.triage, null, 2);
   }, [result]);
 
-  const handleResult = useCallback((data: VoiceResult) => {
+  const budgets = config?.budgets_ms ?? { asr: 8000, llm: 15000, tts: 10000, total: 30000 };
+
+  const pipeline: PipelineInput | null = useMemo(() => {
+    if (!result) return null;
+    return {
+      latency: result.latency,
+      budgets,
+      sources: result.sources,
+      degradation: result.degradation,
+      degradationMessage: result.degradation_message,
+      config: config
+        ? { asr_mode: config.asr_mode, llm_mode: config.llm_mode, tts_mode: config.tts_mode }
+        : null,
+    };
+  }, [result, budgets, config]);
+
+  const handleResult = useCallback((data: VoiceResult, source: 'live' | 'replay') => {
     setResult(data);
+    setTraceSource(source);
     if (data.audio_b64) {
       playAudioB64(data.audio_b64);
     } else if (data.use_browser_tts && data.reply) {
@@ -142,7 +117,7 @@ export default function HomePage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ transcript, asr_ms: asrMs }),
         });
-        handleResult(data);
+        handleResult(data, 'live');
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Voice turn failed');
@@ -160,7 +135,7 @@ export default function HomePage() {
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
         if (msg.event === 'result') {
-          handleResult(msg);
+          handleResult(msg, 'live');
           ws.close();
           resolve();
         }
@@ -204,7 +179,7 @@ export default function HomePage() {
     try {
       const data = await fetchJson(`${API_URL}/v1/replay`);
       if (data.replay) {
-        setResult(data.replay as VoiceResult);
+        handleResult(data.replay as VoiceResult, 'replay');
       } else {
         setError('No replay saved yet.');
       }
@@ -215,197 +190,156 @@ export default function HomePage() {
     }
   }
 
-  const budgets = config?.budgets_ms ?? { asr: 8000, llm: 15000, tts: 10000, total: 30000 };
-
   return (
-    <ProductWorkbench
+    <GlassboxWorkbench
       eyebrow="Voice interface layer"
-      productName="VoiceForge"
-      subtitle="Real-time voice triage with per-phase latency budgets — ASR → governed LLM → TTS, with graceful degradation."
+      title="VoiceForge — glass-box voice triage"
+      subtitle="Speak or type an IT issue and watch ASR → governed LLM → TTS replay under hard latency budgets. Architecture and live SLOs on the left, the product on the right."
+      metricsRefreshToken={metricsToken}
+      onReplayDone={() => setMetricsToken((t) => t + 1)}
+      pipeline={pipeline}
+      traceSource={traceSource}
+      architect={{
+        metricsUrl: `${API_URL}/v1/ops/metrics`,
+        metricLabels: { runs: 'Voice turns', entities: 'Sessions', latency: 'P95 total' },
+        layers: [
+          { tier: 'L1', name: 'Voice UX', role: 'Browser + WebSocket', components: ['Web Speech ASR', 'Replay'] },
+          { tier: 'L2', name: 'Pipeline', role: 'Phase budgets', components: ['ASR', 'LLM triage', 'Edge TTS'] },
+          { tier: 'L3', name: 'Degradation', role: 'Budget enforcement', components: ['Text fallback', 'Timeouts'] },
+          { tier: 'L4', name: 'Ops', role: 'Latency proof', components: ['/v1/ops/metrics', 'SLO'] },
+        ],
+        tradeoffs: [
+          { decision: 'Browser ASR default', gain: 'Zero GPU on Render free tier', trade: 'Quality varies by browser' },
+          { decision: 'Per-phase latency budgets', gain: 'Predictable UX under load', trade: 'May truncate slow LLM/TTS' },
+          { decision: 'Pairs with DomainForge', gain: 'Same triage JSON contract', trade: 'Two services for full stack' },
+        ],
+        adrLinks: [
+          {
+            title: 'Case study — VoiceForge',
+            href: 'https://github.com/vpeetla-ai/ai-architecture-portfolio/blob/main/case-studies/voiceforge-assistant.md',
+          },
+        ],
+        docsLinks: [
+          { title: 'Architecture', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/ARCHITECTURE.md' },
+          { title: 'SLO targets', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/SLO.md' },
+        ],
+      }}
       productPanel={
         <>
-      {config && (
-        <div className="panel">
-          <span className="badge">ASR: {config.asr_mode}</span>
-          <span className="badge">LLM: {config.llm_mode}</span>
-          <span className="badge">TTS: {config.tts_mode}</span>
-          <label style={{ marginTop: '0.75rem' }}>
-            <input
-              type="checkbox"
-              checked={useWs}
-              onChange={(e) => setUseWs(e.target.checked)}
-              style={{ width: 'auto', marginRight: '0.5rem' }}
-            />
+          {config && (
+            <div className="gb-modes">
+              <span className="badge">ASR: {config.asr_mode}</span>
+              <span className="badge">LLM: {config.llm_mode}</span>
+              <span className="badge">TTS: {config.tts_mode}</span>
+            </div>
+          )}
+
+          <p className="gb-guided">
+            <strong>1.</strong> Speak or type an IT issue → <strong>2.</strong> watch the ASR → LLM → TTS
+            budgets replay in the center → <strong>3.</strong> inspect the triage JSON below.
+          </p>
+
+          <div className="row">
+            <button
+              type="button"
+              className={`mic ${listening ? 'listening' : ''}`}
+              onClick={listening ? stopListening : startListening}
+              disabled={loading}
+            >
+              {listening ? '⏹ Stop' : '🎤 Speak'}
+            </button>
+            <button
+              type="button"
+              className="secondary"
+              onClick={() => void sendTurn(textInput)}
+              disabled={loading || !textInput.trim()}
+            >
+              Send text
+            </button>
+          </div>
+
+          <label htmlFor="text" style={{ marginTop: '1rem' }}>
+            Text fallback (graceful degradation)
+          </label>
+          <textarea
+            id="text"
+            rows={3}
+            value={textInput}
+            onChange={(e) => setTextInput(e.target.value)}
+            placeholder="Type or speak your IT issue…"
+          />
+
+          <div className="gb-run-row">
+            <button type="button" className="secondary" onClick={() => void loadReplay()} disabled={loading}>
+              Replay last turn
+            </button>
+          </div>
+
+          <label className="gb-ws-toggle">
+            <input type="checkbox" checked={useWs} onChange={(e) => setUseWs(e.target.checked)} />
             Use WebSocket transport
           </label>
-        </div>
-      )}
 
-      <div className="panel">
-        <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.85rem' }}>
-          <strong>1.</strong> Speak or type an IT issue → <strong>2.</strong> Watch ASR → LLM → TTS budgets → <strong>3.</strong> Inspect triage JSON.
-        </p>
-        <div className="row">
-          <button
-            type="button"
-            className={`mic ${listening ? 'listening' : ''}`}
-            onClick={listening ? stopListening : startListening}
-            disabled={loading}
-          >
-            {listening ? '⏹ Stop' : '🎤 Speak'}
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => void sendTurn(textInput)}
-            disabled={loading || !textInput.trim()}
-          >
-            Send text
-          </button>
-          <button type="button" className="secondary" onClick={() => void loadReplay()} disabled={loading}>
-            Replay last
-          </button>
-        </div>
+          {error && <p className="error">{error}</p>}
 
-        <label htmlFor="text" style={{ marginTop: '1rem' }}>
-          Text fallback (graceful degradation)
-        </label>
-        <textarea
-          id="text"
-          rows={3}
-          value={textInput}
-          onChange={(e) => setTextInput(e.target.value)}
-          placeholder="Type or speak your IT issue…"
-        />
-        {error && <p className="error">{error}</p>}
-      </div>
-
-      <div className="panel">
-        <h2 style={{ fontSize: '1rem', margin: '0 0 0.35rem' }}>Latency budgets</h2>
-        <p className="muted" style={{ margin: '0 0 0.75rem', fontSize: '0.8rem' }}>
-          Targets — ASR {budgets.asr}ms · LLM {budgets.llm}ms · TTS {budgets.tts}ms · total {budgets.total}ms
-          {!result ? ' · run a turn to fill the waterfall' : ''}
-        </p>
-        <Waterfall
-          latency={
-            result?.latency ?? {
-              asr_ms: 0,
-              llm_ttft_ms: 0,
-              llm_total_ms: 0,
-              tts_ms: 0,
-              total_ms: 0,
-            }
-          }
-          budgets={budgets}
-        />
-        {result && result.degradation !== 'none' && (
-          <p className="degraded">⚠ {result.degradation_message || result.degradation}</p>
-        )}
-      </div>
-
-      {result && (
-        <>
-          <div className="panel">
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.5rem' }}>Transcript</h2>
-            <p>{result.transcript || '—'}</p>
-            <h2 style={{ fontSize: '1rem', margin: '1rem 0 0.5rem' }}>Reply</h2>
-            <p>{result.reply}</p>
-            {triagePretty && (
-              <>
-                <h2 style={{ fontSize: '1rem', margin: '1rem 0 0.5rem' }}>Triage JSON</h2>
-                <pre className="triage">{triagePretty}</pre>
-              </>
-            )}
-          </div>
-
-          <div className="panel">
-            <table className="status-table">
-              <thead>
-                <tr>
-                  <th>Phase</th>
-                  <th>Source</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(result.sources).map(([phase, source]) => (
-                  <tr key={phase}>
-                    <td>{phase.toUpperCase()}</td>
-                    <td>{source}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      <details className="panel" style={{ padding: '1rem 1.25rem' }}>
-        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Stack status (details)</summary>
-        <table className="status-table" style={{ marginTop: '0.75rem' }}>
-          <thead>
-            <tr>
-              <th>Component</th>
-              <th>Status</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Browser ASR</td>
-              <td>✅ Live</td>
-              <td>Web Speech API — default on Render free tier</td>
-            </tr>
-            <tr>
-              <td>Server Whisper</td>
-              <td>🔧 Optional</td>
-              <td>pip install -e &quot;.[asr]&quot; on GPU host</td>
-            </tr>
-            <tr>
-              <td>LLM triage</td>
-              <td>✅ Mock / Ollama / DomainForge</td>
-              <td>Pairs with DomainForge S0→S4 ladder</td>
-            </tr>
-            <tr>
-              <td>Edge TTS</td>
-              <td>✅ Server</td>
-              <td>Browser speechSynthesis fallback</td>
-            </tr>
-            <tr>
-              <td>WebSocket</td>
-              <td>✅ /ws/voice</td>
-              <td>Phase events + result payload</td>
-            </tr>
-          </tbody>
-        </table>
-      </details>
+          {result ? (
+            <div className="gb-result">
+              <h3>Transcript</h3>
+              <p>{result.transcript || '—'}</p>
+              <h3>Reply</h3>
+              <p>{result.reply}</p>
+              {triagePretty && (
+                <>
+                  <h3>Triage JSON</h3>
+                  <pre className="triage">{triagePretty}</pre>
+                </>
+              )}
+            </div>
+          ) : (
+            <p className="muted gb-empty-hint">No turn yet — run one to hear the reply and see triage output.</p>
+          )}
         </>
       }
-      architecturePanel={
-        <ArchitectOverview
-          tagline="Multimodal layer atop DomainForge triage — phase budgets enforce predictable voice UX under load."
-          layers={[
-            { tier: 'L1', name: 'Voice UX', role: 'Browser + WebSocket', components: ['Web Speech ASR', 'Waterfall', 'Replay'] },
-            { tier: 'L2', name: 'Pipeline', role: 'Phase budgets', components: ['ASR', 'LLM triage', 'Edge TTS'] },
-            { tier: 'L3', name: 'Degradation', role: 'Budget enforcement', components: ['Text fallback', 'Browser TTS', 'Timeouts'] },
-            { tier: 'L4', name: 'Ops', role: 'Latency proof', components: ['/v1/ops/metrics', 'Replay store', 'SLO'] },
-          ]}
-          tradeoffs={[
-            { decision: 'Browser ASR default', gain: 'Zero GPU on Render free tier', trade: 'Quality varies by browser' },
-            { decision: 'Per-phase latency budgets', gain: 'Predictable UX under load', trade: 'May truncate slow LLM/TTS paths' },
-            { decision: 'WebSocket optional', gain: 'Phase events for operator visibility', trade: 'Extra connection surface' },
-            { decision: 'Pairs with DomainForge', gain: 'Same triage JSON contract', trade: 'Two services for full stack demo' },
-          ]}
-          metricsUrl={`${API_URL}/v1/ops/metrics`}
-          metricLabels={{ runs: 'Voice turns', entities: 'Sessions', latency: 'P95 total latency' }}
-          eagleEyeNote="Multimodal experience layer — consumes DomainForge triage JSON under strict latency budgets."
-          adrLinks={[
-            { title: 'Case study — VoiceForge', href: 'https://github.com/vpeetla-ai/ai-architecture-portfolio/blob/main/case-studies/voiceforge-assistant.md' },
-          ]}
-          docsLinks={[
-            { title: 'Architecture', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/ARCHITECTURE.md' },
-            { title: 'SLO targets', href: 'https://github.com/vpeetla-ai/voiceforge-assistant/blob/main/docs/SLO.md' },
-          ]}
-        />
+      secondaryPanel={
+        <details className="gb-details">
+          <summary>Stack status (details)</summary>
+          <table className="status-table" style={{ marginTop: '0.75rem' }}>
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Status</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Browser ASR</td>
+                <td>✅ Live</td>
+                <td>Web Speech API — default on Render free tier</td>
+              </tr>
+              <tr>
+                <td>Server Whisper</td>
+                <td>🔧 Optional</td>
+                <td>pip install -e &quot;.[asr]&quot; on GPU host</td>
+              </tr>
+              <tr>
+                <td>LLM triage</td>
+                <td>✅ Mock / Ollama / DomainForge</td>
+                <td>Pairs with DomainForge S0→S4 ladder</td>
+              </tr>
+              <tr>
+                <td>Edge TTS</td>
+                <td>✅ Server</td>
+                <td>Browser speechSynthesis fallback</td>
+              </tr>
+              <tr>
+                <td>WebSocket</td>
+                <td>✅ /ws/voice</td>
+                <td>Phase events + result payload</td>
+              </tr>
+            </tbody>
+          </table>
+        </details>
       }
     />
   );
