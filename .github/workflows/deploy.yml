@@ -54,7 +54,7 @@ jobs:
         run: |
           if [ -z "${VERCEL_TOKEN}" ] || [ -z "${VERCEL_ORG_ID}" ] || [ -z "${VERCEL_PROJECT_ID}" ]; then
             echo "::warning::VERCEL_TOKEN / VERCEL_ORG_ID / VERCEL_PROJECT_ID not fully configured"
-            echo "Manual fallback: cd ui && vercel link --project voiceforge-assistant && vercel --prod"
+            echo "Manual fallback: cd ui && vercel link --project voiceforge-assistant-edaf && vercel --prod"
             exit 0
           fi
           npm ci

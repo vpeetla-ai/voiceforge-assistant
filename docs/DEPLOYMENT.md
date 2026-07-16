@@ -43,10 +43,10 @@ voice product (right).
 manual fallback:
 
 ```bash
-cd ui && vercel link --project voiceforge-assistant && vercel --prod
+cd ui && vercel link --project voiceforge-assistant-edaf && vercel --prod
 ```
 
-> Always link to the `voiceforge-assistant` Vercel project so a deploy doesn't
+> Always link to the `voiceforge-assistant-edaf` Vercel project so a deploy doesn't
 > overwrite a sibling repo's project.
 
 ## Local dev
